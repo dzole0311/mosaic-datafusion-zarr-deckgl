@@ -1,0 +1,36 @@
+{
+  "name": "mosaic-datafusion-zarr-react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.3.6",
+    "@deck.gl/geo-layers": "^9.3.6",
+    "@deck.gl/layers": "^9.3.6",
+    "@developmentseed/deck.gl-raster": "^0.7.0",
+    "@developmentseed/deck.gl-zarr": "^0.7.0",
+    "@luma.gl/core": "^9.3.6",
+    "@luma.gl/shadertools": "^9.3.6",
+    "@uwdata/flechette": "^2.5.0",
+    "@uwdata/mosaic-core": "^0.28.1",
+    "@uwdata/mosaic-sql": "^0.28.1",
+    "@uwdata/vgplot": "^0.28.1",
+    "datafusion-wasm": "file:../datafusion-wasm-bindings/pkg",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zarrita": "^0.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3"
+  }
+}

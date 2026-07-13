@@ -1,0 +1,333 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #22282b;
+  background: #151718;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:disabled,
+input:disabled {
+  cursor: progress;
+  opacity: 0.58;
+}
+
+.map-app {
+  --panel-width: min(520px, calc(100vw - 36px));
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Map fills the viewport up to the docked control panel. */
+.map-pane {
+  position: absolute;
+  inset: 0;
+  right: var(--panel-width);
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-title {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: min(720px, calc(100% - 36px));
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 24, 23, 0.76);
+  color: #f4f7f4;
+  backdrop-filter: blur(10px);
+}
+
+.map-title strong {
+  font-size: 15px;
+}
+
+.map-legend {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto 220px auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 24, 23, 0.76);
+  color: #eef3ee;
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.legend-ramp {
+  height: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: linear-gradient(90deg, #082f49, #3f3c97, #a44f8b, #e46661, #f59f38, #edf84a);
+}
+
+.map-brush-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 16, 16, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.loader-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(20, 24, 23, 0.82);
+  color: #f4f7f4;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.control-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  width: var(--panel-width);
+  display: grid;
+  /* Forecast controls take their natural height; the three chart cards
+     split the remaining sidebar height evenly. */
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  overflow: auto;
+  background: rgba(255, 255, 252, 0.94);
+}
+
+/* Cards sit flush; collapse the doubled border where two cards meet. */
+.control-panel > * + * {
+  border-top: 0;
+}
+
+.forecast-control,
+.chart-card {
+  border: 1px solid rgba(28, 31, 31, 0.14);
+  background: rgba(255, 255, 252, 0.94);
+}
+
+.forecast-control {
+  padding: 16px;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.control-head,
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+h1 {
+  margin: 0;
+  color: #22282b;
+  font-size: 24px;
+  font-weight: 760;
+}
+
+.status {
+  margin: 5px 0 0;
+  color: #69716d;
+  font-size: 13px;
+}
+
+.reset-button {
+  border: 1px solid transparent;
+  background: #22342c;
+  color: #ffffff;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 15px 0 14px;
+}
+
+.metric-grid div {
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid #e4e6e0;
+  background: #fbfcf7;
+}
+
+.metric-grid dt {
+  color: #667069;
+  font-size: 11px;
+}
+
+.metric-grid dd {
+  margin: 4px 0 0;
+  color: #202725;
+  font-size: 14px;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.time-control {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.time-control input[type="range"] {
+  width: 100%;
+  accent-color: #22342c;
+}
+
+.icon-button {
+  border: 1px solid #d8ddd4;
+  background: #ffffff;
+  color: #22342c;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.map-brush-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.map-brush-control input[type="range"] {
+  accent-color: #22342c;
+}
+
+.tool-toggle {
+  border: 1px solid #d8ddd4;
+  background: #ffffff;
+  color: #22342c;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.tool-toggle.active {
+  border-color: #22342c;
+  background: #22342c;
+  color: #ffffff;
+}
+
+.brush-readout {
+  color: #667069;
+  font-size: 12px;
+}
+
+.pane-head {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e2e5df;
+  color: #667069;
+  font-size: 12px;
+}
+
+.pane-head strong {
+  color: #2a3430;
+  font-size: 15px;
+}
+
+.chart-host {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 14px 10px;
+  overflow: hidden;
+}
+
+.chart-loading {
+  height: 100%;
+  min-height: 110px;
+  display: grid;
+  grid-auto-flow: column;
+  align-content: center;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  color: #59645d;
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  /* Panel docks to the bottom, so the map takes the full width again. */
+  .map-pane {
+    right: 0;
+  }
+
+  .map-title {
+    max-width: calc(100vw - 36px);
+    right: 18px;
+  }
+
+  .control-panel {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 58vh;
+    grid-template-rows: auto;
+    align-content: start;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
