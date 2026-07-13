@@ -25,25 +25,32 @@ type Row = Record<string, string | number | boolean | null | undefined>;
 const CATEGORY_CASE =
   "CASE WHEN value < 0 THEN 'freezing' WHEN value < 10 THEN 'cool' WHEN value < 20 THEN 'mild' ELSE 'warm' END";
 
+const CELL_AREA_EQUATOR_KM2 = (111.32 * ECMWF_RESOLUTION) ** 2;
+
 /**
  * Static cell attributes derived from the lead-0 slice of cells_all_leads.
  * Grid position comes from the row id, lon/lat from the crop bounds with
- * the grid point at the cell center. NULL samples (NaN in the Zarr cube)
- * fall back to 0.
+ * the grid point at the cell center, area_km2 from the cos(latitude)
+ * spherical cell area. NULL samples (NaN in the Zarr cube) fall back to 0.
  */
-const CELLS_LEAD0_SQL = `SELECT id, x, y,
-  ${BOUNDS.west} + (CAST(x AS DOUBLE) + 0.5) * ${ECMWF_RESOLUTION} AS lon,
-  ${BOUNDS.north} - (CAST(y AS DOUBLE) + 0.5) * ${ECMWF_RESOLUTION} AS lat,
+const CELLS_LEAD0_SQL = `SELECT id, x, y, lon, lat,
+  ${CELL_AREA_EQUATOR_KM2} * COS(RADIANS(lat)) AS area_km2,
   value,
   ${CATEGORY_CASE} AS category
 FROM (
-  SELECT id,
-    id % ${RASTER_WIDTH} AS x,
-    id / ${RASTER_WIDTH} AS y,
-    CAST(COALESCE(temperature, 0) AS DOUBLE) AS value
-  FROM cells_all_leads
-  WHERE time_index = 0
-) AS base
+  SELECT id, x, y,
+    ${BOUNDS.west} + (CAST(x AS DOUBLE) + 0.5) * ${ECMWF_RESOLUTION} AS lon,
+    ${BOUNDS.north} - (CAST(y AS DOUBLE) + 0.5) * ${ECMWF_RESOLUTION} AS lat,
+    value
+  FROM (
+    SELECT id,
+      id % ${RASTER_WIDTH} AS x,
+      id / ${RASTER_WIDTH} AS y,
+      CAST(COALESCE(temperature, 0) AS DOUBLE) AS value
+    FROM cells_all_leads
+    WHERE time_index = 0
+  ) AS base
+) AS geo
 ORDER BY id`;
 
 /**
@@ -53,9 +60,10 @@ ORDER BY id`;
  */
 function currentLeadCellsSql(leadIndex: number) {
   if (leadIndex === 0) return "SELECT * FROM cells_lead0";
-  return `SELECT id, x, y, lon, lat, value, ${CATEGORY_CASE} AS category
+  return `SELECT id, x, y, lon, lat, area_km2, value, ${CATEGORY_CASE} AS category
 FROM (
   SELECT b.id AS id, b.x AS x, b.y AS y, b.lon AS lon, b.lat AS lat,
+    b.area_km2 AS area_km2,
     COALESCE(CAST(t.temperature AS DOUBLE), b.value) AS value
   FROM cells_lead0 AS b
   LEFT JOIN (
@@ -96,6 +104,16 @@ function cellsAllLeadsIpc(cube: TimeCube, loaded: Uint8Array) {
     { id, time_index: timeIndex, temperature },
     { types: { temperature: float32() } as Record<string, DataType> },
   );
+  const bytes = tableToIPC(table, { format: "stream" });
+  if (!bytes) throw new Error("Arrow IPC encoding produced no bytes");
+  return bytes;
+}
+
+function forecastTimesIpc(cube: TimeCube) {
+  const table = tableFromArrays({
+    time_index: Int32Array.from(cube.validTimeMs, (_, index) => index),
+    valid_time_ms: Float64Array.from(cube.validTimeMs),
+  });
   const bytes = tableToIPC(table, { format: "stream" });
   if (!bytes) throw new Error("Arrow IPC encoding produced no bytes");
   return bytes;
@@ -148,6 +166,7 @@ export class DataFusion {
     await initDataFusion(dataFusionWasmUrl);
     const ctx = DataFusionContext.new();
     ctx.register_ipc("cells_all_leads", cellsAllLeadsIpc(cube, loaded));
+    ctx.register_ipc("forecast_times", forecastTimesIpc(cube));
     await ctx.materialize_table("cells_lead0", CELLS_LEAD0_SQL);
     await ctx.materialize_table("cells_current_lead", "SELECT * FROM cells_lead0");
     return new DataFusion(ctx, cube, onLog);

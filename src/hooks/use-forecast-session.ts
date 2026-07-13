@@ -8,10 +8,15 @@ import type { Lab } from "./use-forecast-lab";
 
 const PLAYBACK_STEP_MS = 450;
 
+export const HOT_THRESHOLD_C = 25;
+
 export type ForecastSession = {
   leadIndex: number;
+  forecastTimeMs: number | null;
   selectedCount: number;
   meanTemp: number | null;
+  selectedAreaKm2: number | null;
+  hotAreaKm2: number | null;
   playing: boolean;
   requestLead: (index: number) => void;
   togglePlay: () => void;
@@ -37,8 +42,11 @@ function predicateSql(selection: Selection) {
  */
 export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 0): ForecastSession {
   const [leadIndex, setLeadIndex] = useState(0);
+  const [forecastTimeMs, setForecastTimeMs] = useState<number | null>(null);
   const [selectedCount, setSelectedCount] = useState(0);
   const [meanTemp, setMeanTemp] = useState<number | null>(null);
+  const [selectedAreaKm2, setSelectedAreaKm2] = useState<number | null>(null);
+  const [hotAreaKm2, setHotAreaKm2] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
 
   const mapRef = useRef(map);
@@ -75,11 +83,31 @@ export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 
 
     const rows = (await lab.df.query({
       type: "json",
-      sql: `SELECT avg(value) AS mean_temp FROM cells_current_lead${where ? ` WHERE ${where}` : ""}`,
-    })) as Array<{ mean_temp: number | null }>;
+      sql: `SELECT avg(value) AS mean_temp,
+  sum(area_km2) AS selected_area,
+  sum(CASE WHEN value >= ${HOT_THRESHOLD_C} THEN area_km2 ELSE 0 END) AS hot_area
+FROM cells_current_lead${where ? ` WHERE ${where}` : ""}`,
+    })) as Array<{
+      mean_temp: number | null;
+      selected_area: number | null;
+      hot_area: number | null;
+    }>;
     if (seq !== selectionSeq.current) return;
     const mean = rows[0]?.mean_temp;
     setMeanTemp(mean == null ? null : Number(mean));
+    const selectedArea = rows[0]?.selected_area;
+    setSelectedAreaKm2(selectedArea == null ? null : Number(selectedArea));
+    const hotArea = rows[0]?.hot_area;
+    setHotAreaKm2(hotArea == null ? null : Number(hotArea));
+  }, [lab]);
+
+  const fetchForecastTime = useCallback(async () => {
+    const rows = (await lab.df.query({
+      type: "json",
+      sql: `SELECT valid_time_ms FROM forecast_times WHERE time_index = ${leadRef.current}`,
+    })) as Array<{ valid_time_ms: number | null }>;
+    const ms = rows[0]?.valid_time_ms;
+    setForecastTimeMs(ms == null ? null : Number(ms));
   }, [lab]);
 
   /**
@@ -99,6 +127,7 @@ export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 
         lab.coordinator.clients.forEach((client) => {
           if (client.enabled) void client.requestQuery();
         });
+        await fetchForecastTime();
         await refreshSelection();
       }
     } catch (error) {
@@ -106,7 +135,7 @@ export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 
     } finally {
       leadRunning.current = false;
     }
-  }, [lab, refreshSelection]);
+  }, [lab, fetchForecastTime, refreshSelection]);
 
   const requestLead = useCallback(
     (index: number) => {
@@ -128,9 +157,10 @@ export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 
   useEffect(() => {
     const onValue = () => void refreshSelection();
     lab.selection.addEventListener("value", onValue);
+    void fetchForecastTime();
     void refreshSelection();
     return () => lab.selection.removeEventListener("value", onValue);
-  }, [lab, refreshSelection, cubeVersion]);
+  }, [lab, fetchForecastTime, refreshSelection, cubeVersion]);
 
   useEffect(() => {
     if (!map) return;
@@ -154,5 +184,16 @@ export function useForecastSession(lab: Lab, map: MapView | null, cubeVersion = 
     requestLead(0);
   }, [lab, requestLead]);
 
-  return { leadIndex, selectedCount, meanTemp, playing, requestLead, togglePlay, reset };
+  return {
+    leadIndex,
+    forecastTimeMs,
+    selectedCount,
+    meanTemp,
+    selectedAreaKm2,
+    hotAreaKm2,
+    playing,
+    requestLead,
+    togglePlay,
+    reset,
+  };
 }

@@ -48,6 +48,7 @@ function sizeKey(hosts: HTMLElement[]) {
 type Hosts = {
   gradient: HTMLElement;
   distribution: HTMLElement;
+  area: HTMLElement;
   classes: HTMLElement;
 };
 
@@ -66,6 +67,7 @@ function buildCharts(hosts: Hosts, coordinator: Coordinator, selection: Selectio
   const fixedXDomain = streaming ? [] : [ctx.xDomain(ctx.Fixed)];
   const gradientSize = hostSize(hosts.gradient, 140);
   const distributionSize = hostSize(hosts.distribution, 140);
+  const areaSize = hostSize(hosts.area, 140);
   const classesSize = hostSize(hosts.classes, 120);
 
   hosts.distribution.replaceChildren(
@@ -94,12 +96,38 @@ function buildCharts(hosts: Hosts, coordinator: Coordinator, selection: Selectio
     ),
   );
 
+  hosts.area.replaceChildren(
+    plot(
+      ctx.rectY(allCells, {
+        x: ctx.bin("value", { steps: 16 }),
+        y: ctx.sum("area_km2"),
+        fill: "#d8e0db",
+        fillOpacity: 0.45,
+        inset: 1,
+      }),
+      ctx.rectY(selectedCells, {
+        x: ctx.bin("value", { steps: 16 }),
+        y: ctx.sum("area_km2"),
+        fill: "#e87d5b",
+        inset: 1,
+      }),
+      ctx.intervalX({ as: selection, field: "value", brush }),
+      ...fixedDomains,
+      ctx.xLabel("2 m temp (°C)"),
+      ctx.yLabel("area (km²)"),
+      ctx.width(areaSize.width),
+      ctx.height(areaSize.height),
+      ctx.marginLeft(56),
+      ctx.marginRight(16),
+    ),
+  );
+
   hosts.classes.replaceChildren(
     plot(
       ctx.barX(allCells, { x: ctx.count(), y: "category", fill: "#d8e0db", fillOpacity: 0.48 }),
       ctx.barX(selectedCells, { x: ctx.count(), y: "category", fill: "category" }),
       ctx.barX(allCells, { x: ctx.count(), y: "category", fill: "#000", fillOpacity: 0.001 }),
-      ctx.toggleY({ as: selection }),
+      ctx.toggleY({ as: selection, peers: false }),
       ...fixedXDomain,
       ctx.yDomain(["freezing", "cool", "mild", "warm"]),
       ctx.colorDomain(["freezing", "cool", "mild", "warm"]),
@@ -153,6 +181,7 @@ export function MosaicCharts({
   streaming?: boolean;
 }) {
   const distributionRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
   const classesRef = useRef<HTMLDivElement>(null);
   const gradientRef = useRef<HTMLDivElement>(null);
 
@@ -160,6 +189,7 @@ export function MosaicCharts({
     const hosts: Hosts = {
       gradient: gradientRef.current!,
       distribution: distributionRef.current!,
+      area: areaRef.current!,
       classes: classesRef.current!,
     };
     const hostList = Object.values(hosts);
@@ -191,6 +221,9 @@ export function MosaicCharts({
     <>
       <ChartCard title="Temperature Distribution">
         <div className="chart-host" ref={distributionRef} />
+      </ChartCard>
+      <ChartCard title="Area by Temperature">
+        <div className="chart-host" ref={areaRef} />
       </ChartCard>
       <ChartCard title="Temperature Classes">
         <div className="chart-host" ref={classesRef} />

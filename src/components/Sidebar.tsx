@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { CELL_COUNT } from "../lab/types";
-import type { ForecastSession } from "../hooks/use-forecast-session";
+import { HOT_THRESHOLD_C, type ForecastSession } from "../hooks/use-forecast-session";
 import type { HoverBrush } from "../hooks/use-hover-brush";
 
 /**
@@ -43,16 +43,20 @@ function formatUtc(ms: number) {
   return `${month} ${date.getUTCDate()} ${String(date.getUTCHours()).padStart(2, "0")}Z`;
 }
 
+function formatAreaKm2(km2: number | null) {
+  if (km2 == null) return "-";
+  if (km2 >= 1e6) return `${(km2 / 1e6).toFixed(2)}M km²`;
+  return `${Math.round(km2 / 1e3)}k km²`;
+}
+
 export function ForecastControls({
   session,
   brush,
-  validTimeMs,
   leadCount,
   loading,
 }: {
   session: ForecastSession;
   brush: HoverBrush;
-  validTimeMs: number[];
   leadCount: number;
   loading?: boolean;
 }) {
@@ -67,7 +71,7 @@ export function ForecastControls({
       <dl className="metric-grid">
         <div>
           <dt>Forecast time</dt>
-          <dd>{formatUtc(validTimeMs[session.leadIndex] ?? 0)}</dd>
+          <dd>{session.forecastTimeMs == null ? "-" : formatUtc(session.forecastTimeMs)}</dd>
         </div>
         <div>
           <dt>Mean temp</dt>
@@ -76,7 +80,22 @@ export function ForecastControls({
         <div>
           <dt>Selected cells</dt>
           <dd>
-            {session.selectedCount} / {CELL_COUNT}
+            {session.selectedCount}/{CELL_COUNT}
+          </dd>
+        </div>
+        <div>
+          <dt>Selected area</dt>
+          <dd>{formatAreaKm2(session.selectedAreaKm2)}</dd>
+        </div>
+        <div>
+          <dt>Area ≥ {HOT_THRESHOLD_C} °C</dt>
+          <dd>
+            {formatAreaKm2(session.hotAreaKm2)}
+            {session.hotAreaKm2 != null && session.selectedAreaKm2 ? (
+              <span className="metric-share">
+                {((100 * session.hotAreaKm2) / session.selectedAreaKm2).toFixed(0)}%
+              </span>
+            ) : null}
           </dd>
         </div>
       </dl>

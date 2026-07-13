@@ -18,6 +18,9 @@ export function App() {
           <ChartCard title="Temperature Distribution">
             <ChartSpinner />
           </ChartCard>
+          <ChartCard title="Area by Temperature">
+            <ChartSpinner />
+          </ChartCard>
           <ChartCard title="Temperature Classes">
             <ChartSpinner />
           </ChartCard>
@@ -61,12 +64,7 @@ function ForecastApp({
         }
         onReset={session.reset}
         controls={
-          <ForecastControls
-            session={session}
-            brush={brush}
-            validTimeMs={lab.cube.validTimeMs}
-            leadCount={lab.cube.leadCount}
-          />
+          <ForecastControls session={session} brush={brush} leadCount={lab.cube.leadCount} />
         }
       >
         <MosaicCharts coordinator={lab.coordinator} selection={lab.selection} streaming={streaming} />

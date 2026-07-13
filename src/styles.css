@@ -137,9 +137,9 @@ input:disabled {
   z-index: 6;
   width: var(--panel-width);
   display: grid;
-  /* Forecast controls take their natural height; the three chart cards
+  /* Forecast controls take their natural height; the four chart cards
      split the remaining sidebar height evenly. */
-  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto repeat(4, minmax(220px, 1fr));
   overflow: auto;
   background: rgba(255, 255, 252, 0.94);
 }
@@ -196,29 +196,41 @@ h1 {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
   margin: 15px 0 14px;
 }
 
 .metric-grid div {
   min-width: 0;
-  padding: 11px 10px;
+  padding: 10px 8px;
   border: 1px solid #e4e6e0;
   background: #fbfcf7;
 }
 
 .metric-grid dt {
   color: #667069;
-  font-size: 11px;
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .metric-grid dd {
   margin: 4px 0 0;
   color: #202725;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 720;
+  line-height: 1.35;
+  min-height: 2.7em;
   overflow-wrap: anywhere;
+}
+
+.metric-share {
+  display: block;
+  color: #667069;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .time-control {
