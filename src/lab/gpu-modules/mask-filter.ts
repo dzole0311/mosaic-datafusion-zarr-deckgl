@@ -37,8 +37,7 @@ const MODULE_NAME = "maskFilter";
  * hook the extension injects into.
  *
  * The module is app-agnostic: the mask can come from a SQL selection, a
- * rasterized polygon, or any other source. It is shaped for upstreaming
- * into `@developmentseed/deck.gl-raster/gpu-modules`.
+ * rasterized polygon, or any other source.
  */
 export const MaskFilter = {
   name: MODULE_NAME,

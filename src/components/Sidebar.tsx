@@ -24,7 +24,10 @@ export function SidebarFrame({
         <div className="control-head">
           <div>
             <h1>ECMWF IFS ENS</h1>
-            <p className="status">{status}</p>
+            <p className="status">
+              {status && <span className="spinner" aria-hidden="true" />}
+              {status}
+            </p>
           </div>
           <button type="button" className="reset-button" onClick={onReset} disabled={!onReset}>
             Reset

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { Coordinator, Selection } from "@uwdata/mosaic-core";
+import type { Coordinator, Selection, SelectionClause } from "@uwdata/mosaic-core";
 import * as vg from "@uwdata/vgplot";
 
 export function ChartCard({ title, children }: { title: string; children: ReactNode }) {
@@ -51,6 +51,47 @@ type Hosts = {
   area: HTMLElement;
   classes: HTMLElement;
 };
+
+type ChartInteractor = {
+  value: unknown;
+  clause: (value: unknown) => SelectionClause;
+};
+
+/**
+ * The brush and toggle interactors of the rendered plots, in host order.
+ * buildCharts is deterministic, so positions line up across rebuilds.
+ */
+function chartInteractors(hosts: Hosts) {
+  return Object.values(hosts).flatMap((host) =>
+    Array.from(host.children).flatMap(
+      (child) =>
+        (child as unknown as { value?: { interactors?: ChartInteractor[] } }).value
+          ?.interactors ?? [],
+    ),
+  );
+}
+
+/**
+ * Mosaic keys selection clauses by source object identity, so rebuilding
+ * the plots would orphan clauses published by the destroyed interactors:
+ * the brush visuals vanish while the stale predicates keep filtering and
+ * can never be replaced by new brushes. Instead, clauses are carried over:
+ * each one is re-published from the equivalent new interactor, whose seeded
+ * value also makes the brush rectangle render at the same spot.
+ */
+function migrateClauses(
+  selection: Selection,
+  previous: ChartInteractor[],
+  next: ChartInteractor[],
+) {
+  for (const clause of selection.clauses) {
+    const interactor = next[previous.indexOf(clause.source as ChartInteractor)];
+    if (!interactor) continue;
+    interactor.value = clause.value;
+    selection.update({ ...clause, value: null, predicate: null });
+    selection.update(interactor.clause(clause.value));
+  }
+}
 
 function buildCharts(hosts: Hosts, coordinator: Coordinator, selection: Selection, streaming: boolean) {
   const ctx = vg.createAPIContext({ coordinator });
@@ -166,8 +207,9 @@ function buildCharts(hosts: Hosts, coordinator: Coordinator, selection: Selectio
 /**
  * The three crossfiltered vgplot charts. vgplot owns the host DOM, so the
  * refs have no React children. Charts rebuild at the new size when the
- * sidebar cards change on window resize or zoom; the shared Selection
- * survives the rebuild. While streaming is true, domains rescale with each
+ * sidebar cards change on window resize or zoom; the shared Selection and
+ * any active brushes survive the rebuild. While streaming is true, domains
+ * rescale with each
  * arriving Zarr chunk; the flip to false rebuilds once with Fixed domains
  * over the full dataset.
  */
@@ -184,6 +226,7 @@ export function MosaicCharts({
   const areaRef = useRef<HTMLDivElement>(null);
   const classesRef = useRef<HTMLDivElement>(null);
   const gradientRef = useRef<HTMLDivElement>(null);
+  const interactorsRef = useRef<ChartInteractor[]>([]);
 
   useEffect(() => {
     const hosts: Hosts = {
@@ -194,7 +237,16 @@ export function MosaicCharts({
     };
     const hostList = Object.values(hosts);
     let renderedKey = sizeKey(hostList);
-    buildCharts(hosts, coordinator, selection, streaming);
+
+    const build = () => {
+      const previous = interactorsRef.current;
+      coordinator.clear();
+      buildCharts(hosts, coordinator, selection, streaming);
+      const next = chartInteractors(hosts);
+      migrateClauses(selection, previous, next);
+      interactorsRef.current = next;
+    };
+    build();
 
     let resizeTimer = 0;
     const observer = new ResizeObserver(() => {
@@ -203,8 +255,7 @@ export function MosaicCharts({
         const key = sizeKey(hostList);
         if (key === renderedKey || hostList.some((host) => host.clientHeight === 0)) return;
         renderedKey = key;
-        coordinator.clear();
-        buildCharts(hosts, coordinator, selection, streaming);
+        build();
       }, 150);
     });
     hostList.forEach((host) => observer.observe(host));
