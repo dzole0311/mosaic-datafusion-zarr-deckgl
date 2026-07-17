@@ -102,8 +102,8 @@ export function useForecastLab(): LabState {
       const df = await DataFusion.create(stream.cube, stream.loaded, () => {});
       if (cancelled) return;
       const coordinator = new Coordinator(df as never, {
-        cache: false,
-        consolidate: false,
+        cache: true,
+        consolidate: true,
         preagg: { enabled: false },
       });
       const selection = Selection.crossfilter();
